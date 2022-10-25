@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_sound/flutter_sound.dart';
+import 'package:webfeed/webfeed.dart';
+import 'package:http/http.dart' as http;
 
-const url = "https://itsallwidgets.com/podcast/feed";
+final Uri url = Uri.parse("https://itsallwidgets.com/podcast/feed");
 
 void main() {
   runApp(const MyApp());
@@ -17,19 +19,99 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       title: 'The Boring Show',
-      home: BoringPage(),
+      home: EpisodesPage(),
     );
   }
 }
 
-class BoringPage extends StatelessWidget {
-  const BoringPage({super.key});
+class EpisodesPage extends StatelessWidget {
+  const EpisodesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-        body: SafeArea(child: DashCastApp()) //Center(child: PlaybackButton()),
+    return Scaffold(
+      body: FutureBuilder(
+        future: http.get(url),
+        builder: (BuildContext context, AsyncSnapshot<http.Response> snapshot) {
+          if (snapshot.hasData) {
+            final response = snapshot.data;
+            if (response?.statusCode == 200) {
+              final rssString = response?.body;
+              var rssFeed = RssFeed.parse(rssString!);
+              return EpisodeListView(rssFeed: rssFeed);
+            }
+          }
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class EpisodeListView extends StatelessWidget {
+  const EpisodeListView({
+    Key? key,
+    required this.rssFeed,
+  }) : super(key: key);
+
+  final RssFeed rssFeed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: rssFeed.items!
+          .map(
+            (i) => ListTile(
+              title: Text(i.title!),
+              subtitle: Text(
+                i.description!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: ((context) => PlayerPage(item: i)),
+                ));
+              },
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class PlayerPage extends StatelessWidget {
+  const PlayerPage({super.key, required this.item});
+  final RssItem item;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(
+          title: const Text('Admiral AppBar'),
+        ),
+        body: const SafeArea(
+          child: Player(),
+        ) //Center(child: PlaybackButton()),
         );
+  }
+}
+
+class Player extends StatelessWidget {
+  const Player({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: const <Widget>[
+        Flexible(
+          flex: 9,
+          child: Placeholder(),
+        ),
+        Flexible(flex: 2, child: AudioControls()),
+      ],
+    );
   }
 }
 
@@ -82,8 +164,10 @@ class _PlaybackButtonState extends State<PlaybackButton> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const IconButton(
-                onPressed: backward(), icon: Icon(Icons.fast_rewind)),
+            IconButton(
+              icon: const Icon(Icons.fast_rewind),
+              onPressed: backward,
+            ),
             IconButton(
               icon: _isPlaying
                   ? const Icon(Icons.stop)
@@ -96,8 +180,10 @@ class _PlaybackButtonState extends State<PlaybackButton> {
                 }
               },
             ),
-            const IconButton(
-                onPressed: forward(), icon: Icon(Icons.fast_forward)),
+            IconButton(
+              onPressed: forward,
+              icon: const Icon(Icons.fast_forward),
+            ),
           ],
         ),
       ],
@@ -133,26 +219,9 @@ class _PlaybackButtonState extends State<PlaybackButton> {
     }
   }
 
-  void backward() {}
+  backward() {}
 
-  void forward() {}
-}
-
-class DashCastApp extends StatelessWidget {
-  const DashCastApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: const <Widget>[
-        Flexible(
-          flex: 9,
-          child: Placeholder(),
-        ),
-        Flexible(flex: 2, child: AudioControls()),
-      ],
-    );
-  }
+  forward() {}
 }
 
 class PlaybackButtons extends StatelessWidget {
