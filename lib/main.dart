@@ -2,10 +2,38 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_sound/flutter_sound.dart';
+import 'package:provider/provider.dart';
 import 'package:webfeed/webfeed.dart';
 import 'package:http/http.dart' as http;
 
 final Uri url = Uri.parse("https://itsallwidgets.com/podcast/feed");
+
+class PodCast with ChangeNotifier {
+  RssFeed? _feed;
+  RssItem? _selectedItem;
+
+  void parse(Uri url) async {
+    final response = await http.get(url);
+    String? xmlString;
+    xmlString = response.body;
+    _feed = RssFeed.parse(xmlString);
+    notifyListeners();
+  }
+
+  RssFeed? get feed => _feed;
+
+  set feed(RssFeed? value) {
+    _feed = value;
+    notifyListeners();
+  }
+
+  RssItem? get item => _selectedItem;
+
+  set selectedItem(RssItem? value) {
+    _selectedItem = value;
+    notifyListeners();
+  }
+}
 
 void main() {
   runApp(const MyApp());
@@ -17,9 +45,12 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'The Boring Show',
-      home: EpisodesPage(),
+    return ChangeNotifierProvider(
+      create: (BuildContext context) => PodCast()..parse(url),
+      child: const MaterialApp(
+        title: 'The Boring Show',
+        home: EpisodesPage(),
+      ),
     );
   }
 }
@@ -30,20 +61,15 @@ class EpisodesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder(
-        future: http.get(url),
-        builder: (BuildContext context, AsyncSnapshot<http.Response> snapshot) {
-          if (snapshot.hasData) {
-            final response = snapshot.data;
-            if (response?.statusCode == 200) {
-              final rssString = response?.body;
-              var rssFeed = RssFeed.parse(rssString!);
-              return EpisodeListView(rssFeed: rssFeed);
-            }
+      body: Consumer<PodCast>(
+        builder: (context, podcast, child) {
+          if (podcast.feed != null) {
+            return EpisodeListView(rssFeed: podcast.feed);
+          } else {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
         },
       ),
     );
@@ -56,12 +82,12 @@ class EpisodeListView extends StatelessWidget {
     required this.rssFeed,
   }) : super(key: key);
 
-  final RssFeed rssFeed;
+  final RssFeed? rssFeed;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      children: rssFeed.items!
+      children: rssFeed!.items!
           .map(
             (i) => ListTile(
               title: Text(i.title!),
@@ -88,13 +114,13 @@ class PlayerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('Admiral AppBar'),
-        ),
-        body: const SafeArea(
-          child: Player(),
-        ) //Center(child: PlaybackButton()),
-        );
+      appBar: AppBar(
+        title: Text(item.title!),
+      ),
+      body: const SafeArea(
+        child: Player(),
+      ), //Center(child: PlaybackButton()),
+    );
   }
 }
 
@@ -193,7 +219,7 @@ class _PlaybackButtonState extends State<PlaybackButton> {
   @override
   void dispose() {
     _myPlayer.closePlayer();
-    _playerSubscription!.cancel();
+    _playerSubscription?.cancel();
     super.dispose();
   }
 
