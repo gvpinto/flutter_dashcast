@@ -63,13 +63,11 @@ class EpisodesPage extends StatelessWidget {
     return Scaffold(
       body: Consumer<PodCast>(
         builder: (context, podcast, child) {
-          if (podcast.feed != null) {
-            return EpisodeListView(rssFeed: podcast.feed);
-          } else {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
+          return podcast.feed != null
+              ? EpisodeListView(rssFeed: podcast.feed)
+              : const Center(
+                  child: CircularProgressIndicator(),
+                );
         },
       ),
     );
@@ -97,8 +95,9 @@ class EpisodeListView extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               onTap: () {
+                context.read<PodCast>().selectedItem = i;
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: ((context) => PlayerPage(item: i)),
+                  builder: ((context) => const PlayerPage()),
                 ));
               },
             ),
@@ -109,13 +108,12 @@ class EpisodeListView extends StatelessWidget {
 }
 
 class PlayerPage extends StatelessWidget {
-  const PlayerPage({super.key, required this.item});
-  final RssItem item;
+  const PlayerPage({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(item.title!),
+        title: Text(context.read<PodCast>().item!.title!),
       ),
       body: const SafeArea(
         child: Player(),
@@ -129,13 +127,14 @@ class Player extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String description = context.read<PodCast>().item!.description!;
     return Column(
-      children: const <Widget>[
+      children: <Widget>[
         Flexible(
           flex: 9,
-          child: Placeholder(),
+          child: Text(description),
         ),
-        Flexible(flex: 2, child: AudioControls()),
+        const Flexible(flex: 2, child: AudioControls()),
       ],
     );
   }
@@ -180,6 +179,8 @@ class _PlaybackButtonState extends State<PlaybackButton> {
 
   @override
   Widget build(BuildContext context) {
+    final String url = context.read<PodCast>().item!.guid!;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -202,7 +203,7 @@ class _PlaybackButtonState extends State<PlaybackButton> {
                 if (_isPlaying) {
                   _stop();
                 } else {
-                  _play();
+                  _play(url);
                 }
               },
             ),
@@ -228,12 +229,12 @@ class _PlaybackButtonState extends State<PlaybackButton> {
     setState(() => _isPlaying = false);
   }
 
-  void _play() async {
+  void _play(String url) async {
     if (_myPlayerInit && _myPlayer.isPaused) {
       _myPlayer.resumePlayer();
     } else {
-      const url =
-          'https://cdn.pixabay.com/download/audio/2022/10/12/audio_061cead49a.mp3?filename=weeknds-122592.mp3';
+      // const url =
+      //     'https://cdn.pixabay.com/download/audio/2022/10/12/audio_061cead49a.mp3?filename=weeknds-122592.mp3';
       Duration? d = await _myPlayer.startPlayer(fromURI: url);
       _myPlayer.setSubscriptionDuration(const Duration(milliseconds: 1000));
 
