@@ -127,12 +127,18 @@ class Player extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String description = context.read<PodCast>().item!.description!;
+    final PodCast podcast = context.read<PodCast>();
     return Column(
       children: <Widget>[
         Flexible(
-          flex: 9,
-          child: Text(description),
+          flex: 5,
+          child: Image.network(podcast.feed!.image!.url!),
+        ),
+        Flexible(
+          flex: 4,
+          child: SingleChildScrollView(
+            child: Text(podcast.item!.description!),
+          ),
         ),
         const Flexible(flex: 2, child: AudioControls()),
       ],
