@@ -48,9 +48,7 @@ class _MyNavBarState extends State<MyNavBar> {
         height: 80,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            for (var i = 0; i < widget.icons.length; i++) Icon(widget.icons[i])
-          ],
+          children: [for (var icon in widget.icons) Icon(icon)],
         ));
   }
 }
